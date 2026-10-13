@@ -1,2 +1,2 @@
 export * from "./src/index";
-export { createLiveRouter } from "./src/live-router";
+export * from "./src/live-router";

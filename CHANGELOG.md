@@ -1,5 +1,12 @@
 # @solidjs/router
 
+## 2.0.0-next.39
+
+### Patch Changes
+
+- f3b5f56: Put `state`, `noscroll`, `replace`, and `preload` back on `JSX.AnchorHTMLAttributes` by augmenting `@solidjs/web/jsx-runtime`. `preload` also accepts `"viewport"` and `"eager"`. `link` stays owned by core. Pairs with the core change that removes those four props from the anchor type.
+- 5729e79: Require solid-js / @solidjs/web 2.0.0-rc.15. Link and form claims follow rc.15's claim contract: an element's compiled mount claim fires once, after its initial attributes are applied, and later claims come from compiler-owned `href`/`action` writes or from `claimElementTree` sweeps (frame streams, morphs). The router's claim handlers are unchanged.
+
 ## 2.0.0-next.38
 
 ### Patch Changes

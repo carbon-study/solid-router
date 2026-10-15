@@ -799,7 +799,17 @@ export function createRouterContext(
   }
   let submissions: Signal<Submission<any, any>[]> | undefined;
 
+  // The client pending protocol expects a reactive async source, not a raw
+  // Promise passed to NotReadyError. Let an async memo own lazy-table waits.
+  const lazyReady = isServer ? () => undefined : createMemo(() => {
+    const pathname = typeof options.transformUrl === "function"
+      ? options.transformUrl(location.pathname) : location.pathname;
+    const pending = unresolvedLazyMatches(getRouteMatches(branches(), pathname));
+    if (pending.length) return Promise.all(pending.map(resolveLazySubtree)).then(() => undefined);
+  });
+
   const matches = createMemo(() => {
+    lazyReady();
     const pathname =
       typeof options.transformUrl === "function"
         ? options.transformUrl(location.pathname)

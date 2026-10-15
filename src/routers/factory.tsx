@@ -142,7 +142,7 @@ export function defineRoute(route: RouteDefinition): RouteDefinition {
 }
 
 export interface RouterConfig<R extends readonly RouteDefinition[] = RouteDefinition[]> {
-  /** The route tree. Immutable per instance — it is the source of truth for matching *and* types. */
+  /** Route tree or reactive getter returning immutable snapshots. Literal trees retain typed paths. */
   routes: R;
   base?: string;
   /**
@@ -250,16 +250,17 @@ export function createRouter<const R extends readonly RouteDefinition[]>(
   config: RouterConfig<R>
 ): RouterInstance<R> {
   const basePath = config.base || "";
-  // Routes are immutable per instance, so compilation is shared by every
-  // mount, request, and `match()` call — recompiled only when a lazy subtree
-  // resolves (append-only: resolution, not mutation). Reading the version
-  // inside a computation subscribes it; plain calls just see current state.
+  // Cache immutable snapshots by identity. A reactive routes getter may
+  // publish a new snapshot without replacing history or the router context.
   let compiled: Branch[] | undefined;
   let compiledVersion = -1;
+  let compiledRoutes: readonly RouteDefinition[] | undefined;
   const branches = () => {
     const version = trackLazySubtrees();
-    if (!compiled || compiledVersion !== version) {
-      compiled = createBranches(config.routes as unknown as RouteDefinition[], basePath);
+    const routes = config.routes;
+    if (!compiled || compiledVersion !== version || compiledRoutes !== routes) {
+      compiled = createBranches(routes, basePath);
+      compiledRoutes = routes;
       compiledVersion = version;
     }
     return compiled;
@@ -316,7 +317,6 @@ export function createRouter<const R extends readonly RouteDefinition[]>(
   }
 
   const instance = Object.assign(RouterComponent, {
-    routes: config.routes,
     config,
     match(url: string): OutputMatch[] {
       const u = new URL(url, mockBase);
@@ -333,6 +333,7 @@ export function createRouter<const R extends readonly RouteDefinition[]>(
   // Built on first access (a getter via Object.assign would run during the
   // copy) so runtimes without Proxy — some older TVs — can still route as
   // long as they never touch typed paths.
+  Object.defineProperty(instance, "routes", { enumerable: true, get: () => config.routes });
   let paths: RoutePaths<R> | undefined;
   Object.defineProperty(instance, "paths", {
     get: () => paths || (paths = createPathsProxy(renderPath, basePath) as RoutePaths<R>)
